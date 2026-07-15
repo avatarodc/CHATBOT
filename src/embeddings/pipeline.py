@@ -18,7 +18,9 @@ async def embed_chunks(chunks: list[Chunk], document_id: int) -> list[int]:
 
     ids = []
     for chunk, embedding in zip(chunks, embeddings):
-        chunk_id = await insert_chunk(document_id, chunk.contenu, embedding)
+        chunk_id = await insert_chunk(
+            document_id, chunk.contenu, embedding, chunk.numero_page, chunk.position
+        )
         ids.append(chunk_id)
     return ids
 

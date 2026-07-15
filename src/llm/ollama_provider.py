@@ -17,8 +17,8 @@ class OllamaProvider(LLMProvider):
             raise LLMProviderError("OLLAMA_MODEL n'est pas definie. Verifiez le fichier .env.")
         self._url_base = os.environ.get("OLLAMA_URL", OLLAMA_URL_PAR_DEFAUT)
 
-    async def generate(self, prompt: str, context: list[str]) -> str:
-        messages = self._construire_messages(prompt, context)
+    async def generate(self, prompt: str, context: list[str], systeme: str | None = None) -> str:
+        messages = self._construire_messages(prompt, context, systeme)
 
         try:
             async with httpx.AsyncClient(timeout=TIMEOUT_SECONDES) as client:

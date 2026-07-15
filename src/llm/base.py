@@ -14,11 +14,13 @@ class LLMProviderError(Exception):
 
 class LLMProvider(ABC):
     @abstractmethod
-    async def generate(self, prompt: str, context: list[str]) -> str:
+    async def generate(self, prompt: str, context: list[str], systeme: str | None = None) -> str:
         raise NotImplementedError
 
     @staticmethod
-    def _construire_messages(prompt: str, context: list[str]) -> list[dict]:
+    def _construire_messages(
+        prompt: str, context: list[str], systeme: str | None = None
+    ) -> list[dict]:
         """Construit la liste de messages chat (systeme + contexte + question)."""
         if context:
             bloc_contexte = "\n\n".join(f"- {extrait}" for extrait in context)
@@ -27,6 +29,6 @@ class LLMProvider(ABC):
             message_utilisateur = prompt
 
         return [
-            {"role": "system", "content": SYSTEME_PAR_DEFAUT},
+            {"role": "system", "content": systeme or SYSTEME_PAR_DEFAUT},
             {"role": "user", "content": message_utilisateur},
         ]

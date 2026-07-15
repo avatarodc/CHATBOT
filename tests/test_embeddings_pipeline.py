@@ -20,21 +20,28 @@ requires_supabase = pytest.mark.skipif(
 @requires_supabase
 def test_process_pdf_insere_chunks_et_embeddings_en_base():
     async def scenario() -> None:
-        resultat = await process_pdf(PDF_REEL)
+        document_id = None
+        try:
+            resultat = await process_pdf(PDF_REEL)
+            document_id = resultat["document_id"]
 
-        assert resultat["nb_chunks"] >= 1
-        assert len(resultat["chunk_ids"]) == resultat["nb_chunks"]
+            assert resultat["nb_chunks"] >= 1
+            assert len(resultat["chunk_ids"]) == resultat["nb_chunks"]
 
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            dims = await conn.fetch(
-                "SELECT vector_dims(embedding) AS dim FROM chunks WHERE document_id = $1",
-                resultat["document_id"],
-            )
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                dims = await conn.fetch(
+                    "SELECT vector_dims(embedding) AS dim FROM chunks WHERE document_id = $1",
+                    document_id,
+                )
 
-        assert len(dims) == resultat["nb_chunks"]
-        assert all(row["dim"] == DIMENSION_EMBEDDING for row in dims)
-
-        await close_pool()
+            assert len(dims) == resultat["nb_chunks"]
+            assert all(row["dim"] == DIMENSION_EMBEDDING for row in dims)
+        finally:
+            if document_id is not None:
+                pool = await get_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute("DELETE FROM documents WHERE id = $1", document_id)
+            await close_pool()
 
     asyncio.run(scenario())

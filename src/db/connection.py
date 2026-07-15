@@ -24,6 +24,12 @@ async def _register_vector_codec(conn: asyncpg.Connection) -> None:
     await register_vector(conn)
 
 
+async def _pas_de_reset_session(conn: asyncpg.Connection) -> None:
+    """Le pooler Supavisor (mode transaction) gere lui-meme l'etat de session ;
+    la requete DISCARD par defaut d'asyncpg y echoue ('another operation is
+    in progress'). On la desactive en fournissant ce callback no-op."""
+
+
 async def get_pool() -> asyncpg.Pool:
     """Retourne le pool de connexions, en le creant si necessaire."""
     global _pool
@@ -40,7 +46,11 @@ async def get_pool() -> asyncpg.Pool:
         # statement_cache_size=0 : le pooler Supabase (Supavisor, mode transaction)
         # ne supporte pas le cache de prepared statements d'asyncpg.
         _pool = await asyncpg.create_pool(
-            dsn=dsn, init=_register_vector_codec, statement_cache_size=0
+            dsn=dsn,
+            init=_register_vector_codec,
+            statement_cache_size=0,
+            reset=_pas_de_reset_session,
+            max_inactive_connection_lifetime=0,
         )
     except (OSError, asyncpg.PostgresError) as exc:
         raise DatabaseConnectionError(

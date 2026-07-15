@@ -14,19 +14,27 @@ async def insert_document(nom_fichier: str) -> int:
     return row["id"]
 
 
-async def insert_chunk(document_id: int, contenu: str, embedding: list[float]) -> int:
-    """Insere un chunk (contenu + embedding) rattache a un document et retourne son id."""
+async def insert_chunk(
+    document_id: int,
+    contenu: str,
+    embedding: list[float],
+    numero_page: int | None = None,
+    position: int | None = None,
+) -> int:
+    """Insere un chunk (contenu + embedding + metadonnees) et retourne son id."""
     pool = await get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO chunks (document_id, contenu, embedding)
-            VALUES ($1, $2, $3)
+            INSERT INTO chunks (document_id, contenu, embedding, numero_page, position)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING id
             """,
             document_id,
             contenu,
             embedding,
+            numero_page,
+            position,
         )
     return row["id"]
 
@@ -37,9 +45,11 @@ async def search_similar_chunks(embedding_question: list[float], top_k: int = 5)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT id, document_id, contenu, embedding <=> $1 AS distance
-            FROM chunks
-            ORDER BY embedding <=> $1
+            SELECT c.id, c.document_id, d.nom_fichier, c.numero_page, c.position,
+                   c.contenu, c.embedding <=> $1 AS distance
+            FROM chunks c
+            JOIN documents d ON d.id = c.document_id
+            ORDER BY c.embedding <=> $1
             LIMIT $2
             """,
             embedding_question,

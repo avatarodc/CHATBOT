@@ -17,8 +17,8 @@ class GroqProvider(LLMProvider):
             raise LLMProviderError("GROQ_API_KEY n'est pas definie. Verifiez le fichier .env.")
         self._client = groq.AsyncGroq(api_key=api_key, timeout=TIMEOUT_SECONDES)
 
-    async def generate(self, prompt: str, context: list[str]) -> str:
-        messages = self._construire_messages(prompt, context)
+    async def generate(self, prompt: str, context: list[str], systeme: str | None = None) -> str:
+        messages = self._construire_messages(prompt, context, systeme)
 
         try:
             reponse = await self._client.chat.completions.create(
