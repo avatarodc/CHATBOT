@@ -41,6 +41,22 @@
     justify-content: center;
   }
 
+  .file-warning {
+    background: #7a3410;
+    color: #fff2e8;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: center;
+    padding: 10px 18px;
+  }
+
+  .file-warning code {
+    background: rgba(255, 255, 255, 0.16);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
   .app-shell {
     width: 100%;
     max-width: 760px;
@@ -381,6 +397,11 @@
 </head>
 <body>
   <div class="app-shell">
+    <div class="file-warning" id="file-warning" hidden>
+      Cette page est ouverte en fichier local (<code>file://</code>), elle ne peut pas contacter l'API.
+      Lancez le serveur (<code>uvicorn main:app --reload</code>) puis ouvrez
+      <code>http://127.0.0.1:8000/</code> dans le navigateur.
+    </div>
     <header class="app-header">
       <div class="app-header__row">
         <p class="app-header__mark">I<span>S</span>I</p>
@@ -429,6 +450,10 @@
   <script>
     (function () {
       "use strict";
+
+      if (window.location.protocol === "file:") {
+        document.getElementById("file-warning").hidden = false;
+      }
 
       const chatLog = document.getElementById("chat-log");
       const emptyState = document.getElementById("empty-state");
