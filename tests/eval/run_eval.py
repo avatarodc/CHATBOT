@@ -40,6 +40,17 @@ def charger_questions() -> list[dict]:
         return [json.loads(ligne) for ligne in f if ligne.strip()]
 
 
+def _extraire_detail_erreur(exc: httpx.HTTPStatusError) -> str:
+    """Extrait le vrai corps 'detail' renvoye par l'API plutot que le message
+    generique httpx ('Server error ... for url ...') qui le masque."""
+    try:
+        corps = exc.response.json()
+        detail = corps.get("detail", corps)
+    except Exception:
+        detail = exc.response.text
+    return f"HTTP {exc.response.status_code} : {detail}"
+
+
 def executer_evaluation(base_url: str) -> list[dict]:
     questions = charger_questions()
     resultats = []
@@ -60,17 +71,32 @@ def executer_evaluation(base_url: str) -> list[dict]:
                     }
                 )
                 print(f"  [{q['id']}] ok ({corps['temps_ms']} ms)")
-            except Exception as exc:
+            except httpx.HTTPStatusError as exc:
+                temps_ms = round((time.time() - debut) * 1000)
+                detail = _extraire_detail_erreur(exc)
                 resultats.append(
                     {
                         **q,
                         "reponse_observee": None,
                         "sources": [],
-                        "temps_ms": round((time.time() - debut) * 1000),
-                        "erreur": str(exc),
+                        "temps_ms": temps_ms,
+                        "erreur": detail,
                     }
                 )
-                print(f"  [{q['id']}] ERREUR: {exc}")
+                print(f"  [{q['id']}] ERREUR ({temps_ms} ms): {detail}")
+            except Exception as exc:
+                temps_ms = round((time.time() - debut) * 1000)
+                detail = f"{type(exc).__name__}: {exc}"
+                resultats.append(
+                    {
+                        **q,
+                        "reponse_observee": None,
+                        "sources": [],
+                        "temps_ms": temps_ms,
+                        "erreur": detail,
+                    }
+                )
+                print(f"  [{q['id']}] ERREUR ({temps_ms} ms): {detail}")
     return resultats
 
 
@@ -100,6 +126,7 @@ def formater_section_markdown(provider_label: str, resultats: list[dict]) -> str
         lignes.append(f"- **Categorie** : {r['categorie']}")
         lignes.append(f"- **Comportement attendu** : {r['comportement_attendu']}")
         if r["erreur"]:
+            lignes.append(f"- **Temps ecoule avant l'erreur** : {r['temps_ms']} ms")
             lignes.append(f"- **Erreur** : {r['erreur']}")
         else:
             lignes.append(f"- **Temps de reponse** : {r['temps_ms']} ms")
