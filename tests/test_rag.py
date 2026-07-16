@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.api.rag import PROMPT_SYSTEME, SEUIL_DISTANCE_MAX, answer_question
+from src.api.rag import (
+    MESSAGE_ACCUEIL,
+    PROMPT_SYSTEME,
+    SEUIL_DISTANCE_MAX,
+    _est_une_pure_salutation,
+    answer_question,
+)
 
 requires_supabase_et_groq = pytest.mark.skipif(
     not os.environ.get("SUPABASE_DB_URL") or not os.environ.get("GROQ_API_KEY", "").startswith("gsk_"),
@@ -36,6 +42,51 @@ def test_mode_degrade_sans_resultat_pertinent_n_appelle_pas_le_llm():
     assert resultat["provider"] is None
     assert resultat["sources"] == []
     assert "n'ai pas cette information" in resultat["reponse"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Bonjour",
+        "bonjour !",
+        "Salut",
+        "BONSOIR",
+        "slt",
+        "bjr",
+        "Nangadéf",
+        "Ça va ?",
+        "hello",
+        "coucou !!",
+    ],
+)
+def test_pure_salutation_est_detectee(message):
+    assert _est_une_pure_salutation(message) is True
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Bonjour, quelles formations propose l'ISI ?",
+        "Quelle est la capitale du Japon ?",
+        "Comment ça va ?",
+        "Bonjour, je voudrais des informations sur les campus",
+        "",
+    ],
+)
+def test_vraie_question_n_est_pas_une_salutation(message):
+    assert _est_une_pure_salutation(message) is False
+
+
+def test_salutation_repond_par_l_accueil_sans_recherche_ni_llm():
+    with patch("src.api.rag.search_similar_chunks", new=AsyncMock()) as recherche_mock, \
+         patch("src.api.rag.get_llm_provider") as get_provider_mock:
+        resultat = asyncio.run(answer_question("Bonjour"))
+
+    recherche_mock.assert_not_called()
+    get_provider_mock.assert_not_called()
+    assert resultat["reponse"] == MESSAGE_ACCUEIL
+    assert resultat["sources"] == []
+    assert resultat["provider"] is None
 
 
 @requires_supabase_et_groq
