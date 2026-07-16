@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.api.routes import router
 from src.db.connection import close_pool, get_pool
@@ -28,3 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+# Monte apres les routes API : les chemins specifiques (/chat, /health, ...)
+# sont apparies en priorite, ce mount ne sert que ce qu'ils ne couvrent pas.
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
