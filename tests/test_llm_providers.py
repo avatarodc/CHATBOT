@@ -55,6 +55,52 @@ def test_ollama_provider_erreur_si_serveur_injoignable(monkeypatch):
             asyncio.run(provider.generate("test", []))
 
 
+def test_ollama_provider_modele_introuvable_404(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "modele-inexistant")
+    provider = OllamaProvider()
+
+    requete = httpx.Request("POST", "http://localhost:11434/api/chat")
+    reponse_404 = httpx.Response(404, request=requete, json={"error": "model not found"})
+
+    async def _post(*args, **kwargs):
+        return reponse_404
+
+    with patch("httpx.AsyncClient.post", side_effect=_post):
+        with pytest.raises(LLMProviderError, match="introuvable"):
+            asyncio.run(provider.generate("test", []))
+
+
+def test_ollama_provider_500_proche_du_timeout_signale_comme_tel(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_K_M")
+    monkeypatch.setattr("src.llm.ollama_provider.TIMEOUT_SECONDES", 0.01)
+    provider = OllamaProvider()
+
+    requete = httpx.Request("POST", "http://localhost:11434/api/chat")
+    reponse_500 = httpx.Response(500, request=requete, json={"error": "internal error"})
+
+    async def _post(*args, **kwargs):
+        return reponse_500
+
+    with patch("httpx.AsyncClient.post", side_effect=_post):
+        with pytest.raises(LLMProviderError, match="depasse le delai imparti"):
+            asyncio.run(provider.generate("test", []))
+
+
+def test_ollama_provider_500_rapide_signale_comme_erreur_generique(monkeypatch):
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b-instruct-q4_K_M")
+    provider = OllamaProvider()
+
+    requete = httpx.Request("POST", "http://localhost:11434/api/chat")
+    reponse_500 = httpx.Response(500, request=requete, json={"error": "internal error"})
+
+    async def _post(*args, **kwargs):
+        return reponse_500
+
+    with patch("httpx.AsyncClient.post", side_effect=_post):
+        with pytest.raises(LLMProviderError, match="Erreur interne d'Ollama"):
+            asyncio.run(provider.generate("test", []))
+
+
 def test_groq_provider_erreur_cle_invalide_ne_leak_pas_la_cle(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk_valeur_secrete_de_test")
     provider = GroqProvider()
