@@ -6,7 +6,7 @@ import unicodedata
 from pathlib import Path
 
 from src.db.repository import search_similar_chunks
-from src.embeddings.model import encoder
+from src.embeddings.model import encoder, normaliser_pour_embedding
 from src.llm.factory import get_llm_provider
 
 TOP_K = 5
@@ -91,7 +91,9 @@ async def answer_question(question: str) -> dict:
             "temps_traitement": time.time() - debut,
         }
 
-    embedding_question = encoder([question])[0]
+    # Seul le texte envoye a l'embedding est normalise : la question d'origine
+    # (avec sa casse) reste inchangee pour l'appel au LLM.
+    embedding_question = encoder([normaliser_pour_embedding(question)])[0]
     resultats = await search_similar_chunks(embedding_question, top_k=TOP_K)
     resultats_pertinents = [r for r in resultats if r["distance"] <= SEUIL_DISTANCE_MAX]
 

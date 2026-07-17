@@ -77,6 +77,20 @@ def test_vraie_question_n_est_pas_une_salutation(message):
     assert _est_une_pure_salutation(message) is False
 
 
+def test_answer_question_normalise_la_casse_avant_l_embedding():
+    resultats_hors_sujet = [
+        {"id": 1, "document_id": 1, "nom_fichier": "x.pdf", "numero_page": 1, "position": 0,
+         "contenu": "hors sujet", "distance": SEUIL_DISTANCE_MAX + 0.1},
+    ]
+
+    with patch("src.api.rag.search_similar_chunks", new=AsyncMock(return_value=resultats_hors_sujet)), \
+         patch("src.api.rag.encoder", return_value=[[0.0] * 384]) as encoder_mock:
+        asyncio.run(answer_question("C'est quoi ISI ?"))
+
+    textes_encodes = encoder_mock.call_args[0][0]
+    assert textes_encodes == ["c'est quoi isi ?"]
+
+
 def test_salutation_repond_par_l_accueil_sans_recherche_ni_llm():
     with patch("src.api.rag.search_similar_chunks", new=AsyncMock()) as recherche_mock, \
          patch("src.api.rag.get_llm_provider") as get_provider_mock:

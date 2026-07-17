@@ -2,12 +2,14 @@
 
 import asyncio
 import os
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.db.connection import close_pool, get_pool
 from src.embeddings.model import DIMENSION_EMBEDDING
-from src.embeddings.pipeline import process_pdf
+from src.embeddings.pipeline import embed_chunks, process_pdf
+from src.ingestion.chunker import Chunk
 
 PDF_REEL = "data/uploads/ISI_Formations_Test.pdf"
 
@@ -15,6 +17,21 @@ requires_supabase = pytest.mark.skipif(
     not os.environ.get("SUPABASE_DB_URL"),
     reason="SUPABASE_DB_URL non configuree dans l'environnement",
 )
+
+
+def test_embed_chunks_normalise_la_casse_avant_l_embedding():
+    chunks = [Chunk(document_source="x.pdf", numero_page=1, position=0, contenu="C'est quoi ISI ?")]
+
+    with patch("src.embeddings.pipeline.encoder", return_value=[[0.0] * DIMENSION_EMBEDDING]) as encoder_mock, \
+         patch("src.embeddings.pipeline.insert_chunk", new=AsyncMock(return_value=1)) as insert_mock:
+        asyncio.run(embed_chunks(chunks, document_id=1))
+
+    textes_encodes = encoder_mock.call_args[0][0]
+    assert textes_encodes == ["c'est quoi isi ?"]
+
+    # Le contenu stocke garde sa casse d'origine (affichage/citation, contexte LLM).
+    contenu_insere = insert_mock.call_args[0][1]
+    assert contenu_insere == "C'est quoi ISI ?"
 
 
 @requires_supabase

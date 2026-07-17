@@ -16,6 +16,19 @@ def get_modele() -> SentenceTransformer:
     return _modele
 
 
+def normaliser_pour_embedding(texte: str) -> str:
+    """Normalise un texte avant calcul d'embedding (minuscules).
+
+    Un meme contenu ne doit pas produire un vecteur different selon la casse
+    saisie par l'utilisateur ou presente dans le document source - sinon la
+    distance de similarite peut varier au-dessus ou en-dessous du seuil pour
+    un cas quasi identique. A appeler avant chaque appel a encoder(), aux
+    deux endroits ou l'application calcule un embedding (ingestion des
+    chunks, embedding de la question utilisateur).
+    """
+    return texte.lower()
+
+
 def encoder(textes: list[str]) -> list[list[float]]:
     """Encode une liste de textes en embeddings de dimension DIMENSION_EMBEDDING."""
     vecteurs = get_modele().encode(textes, convert_to_numpy=True)

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from src.db.repository import insert_chunk, insert_document
-from src.embeddings.model import encoder
+from src.embeddings.model import encoder, normaliser_pour_embedding
 from src.ingestion.chunker import Chunk, chunker_pages
 from src.ingestion.extraction import extraire_texte_pdf
 
@@ -13,7 +13,9 @@ async def embed_chunks(chunks: list[Chunk], document_id: int) -> list[int]:
     if not chunks:
         return []
 
-    textes = [chunk.contenu for chunk in chunks]
+    # Seul le texte envoye a l'embedding est normalise : chunk.contenu garde
+    # sa casse d'origine pour l'affichage/citation et le contexte envoye au LLM.
+    textes = [normaliser_pour_embedding(chunk.contenu) for chunk in chunks]
     embeddings = encoder(textes)
 
     ids = []
