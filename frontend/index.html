@@ -367,6 +367,14 @@
     color: var(--muted);
   }
 
+  .source-chip__distance {
+    color: var(--muted);
+  }
+
+  .source-chip__distance::before {
+    content: "· ";
+  }
+
   .degraded-badge {
     display: inline-flex;
     align-items: center;
@@ -701,6 +709,19 @@
         return "dot--muted";
       }
 
+      function dedupliquerSources(sources) {
+        // Garde-fou : deux entrees partageant le meme document + chunk_id ne
+        // doivent jamais s'afficher deux fois, meme si la cause racine est
+        // corrigee cote backend/recherche.
+        const vues = new Set();
+        return sources.filter((source) => {
+          const cle = `${source.document}::${source.chunk_id}`;
+          if (vues.has(cle)) return false;
+          vues.add(cle);
+          return true;
+        });
+      }
+
       function creerPuceSource(source) {
         const chip = document.createElement("span");
         chip.className = "source-chip";
@@ -726,6 +747,16 @@
         page.textContent = `p.${numeroPage}`;
         chip.appendChild(page);
 
+        // Deux chunks distincts d'un meme document peuvent partager la meme
+        // page (chevauchement de decoupage) : la distance rendue visible ici
+        // evite que deux puces different se ressemblent a s'y tromper.
+        const distance = document.createElement("span");
+        distance.className = "source-chip__distance";
+        distance.textContent = (typeof source.distance === "number")
+          ? source.distance.toFixed(2)
+          : String(source.distance);
+        chip.appendChild(distance);
+
         return chip;
       }
 
@@ -744,10 +775,12 @@
         const pied = document.createElement("div");
         pied.className = "message__footer";
 
-        if (Array.isArray(corps.sources) && corps.sources.length > 0) {
+        const sourcesUniques = Array.isArray(corps.sources) ? dedupliquerSources(corps.sources) : [];
+
+        if (sourcesUniques.length > 0) {
           const sources = document.createElement("div");
           sources.className = "sources";
-          corps.sources.forEach((source) => sources.appendChild(creerPuceSource(source)));
+          sourcesUniques.forEach((source) => sources.appendChild(creerPuceSource(source)));
           pied.appendChild(sources);
         } else if (typeof corps.reponse === "string" && corps.reponse.startsWith("Je n'ai pas cette information")) {
           // Meme message que le cas 4.1 du prompt systeme : signale que
